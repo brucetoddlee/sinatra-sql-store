@@ -79,6 +79,13 @@ end
 get '/products/:id' do
   c = PGconn.new(:host => "localhost", :dbname => dbname)
   @product = c.exec_params("SELECT * FROM products WHERE products.id = $1;", [params[:id]]).first
+  
+  @categories_display = ""
+  categories_of_product = c.exec_params("SELECT c.name FROM categories AS c INNER JOIN products_categories AS pc ON c.id=pc.category_id INNER JOIN products AS p ON p.id=pc.product_id WHERE p.id = $1", [params["id"]])
+  categories_of_product.each do |category|
+    @categories_display << %Q(<li>#{category["name"]}</li>)
+  end
+
   c.close
   erb :product
 end
@@ -120,3 +127,188 @@ def seed_products_table
   end
   c.close
 end
+
+
+
+
+
+
+
+
+
+
+
+
+# The Categories machinery:
+
+# Get the index of categories
+get '/categories' do
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+
+  # Get all rows from the categories table.
+  @categories = c.exec_params("SELECT * FROM categories;")
+  c.close
+  erb :categories
+end
+
+# Get the form for creating a new category
+get '/categories/new' do
+  erb :new_category
+end
+
+# POST to create a new category
+post '/categories' do
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+
+  # Insert the new row into the categories table.
+  c.exec_params("INSERT INTO categories (name, description) VALUES ($1,$2)",
+                  [params["name"], params["description"]])
+
+  # Assuming you created your categories table with "id SERIAL PRIMARY KEY",
+  # This will get the id of the category you just created.
+  new_category_id = c.exec_params("SELECT currval('categories_id_seq');").first["currval"]
+  c.close
+  redirect "/categories/#{new_category_id}"
+end
+
+# Update a category
+post '/categories/:id' do
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+
+  # Update the category.
+  c.exec_params("UPDATE categories SET (name, description) = ($2, $3) WHERE categories.id = $1 ",
+                [params["id"], params["name"], params["description"]])
+  c.close
+  redirect "/categories/#{params["id"]}"
+end
+
+get '/categories/:id/edit' do
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  @category = c.exec_params("SELECT * FROM categories WHERE categories.id = $1", [params["id"]]).first
+  c.close
+  erb :edit_category
+end
+# DELETE to delete a category
+post '/categories/:id/destroy' do
+
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  c.exec_params("DELETE FROM categories WHERE categories.id = $1", [params["id"]])
+  c.close
+  redirect '/categories'
+end
+
+# GET the show page for a particular category
+get '/categories/:id' do
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  @category = c.exec_params("SELECT * FROM categories WHERE categories.id = $1;", [params[:id]]).first
+  
+  @products_display = ""
+  products_of_category = c.exec_params("SELECT p.name FROM products AS p INNER JOIN products_categories AS pc ON p.id=pc.product_id INNER JOIN categories AS c ON c.id=pc.category_id WHERE c.id = $1", [params["id"]])
+  products_of_category.each do |product|
+    @products_display << %Q(<li>#{product["name"]}</li>)
+  end
+
+  c.close
+  erb :category
+end
+
+def create_categories_table
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  c.exec %q{
+  CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name varchar(255),
+    description text
+  );
+  }
+  c.close
+end
+
+def drop_categories_table
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  c.exec "DROP TABLE categories;"
+  c.close
+end
+
+def seed_categories_table
+  categories = [["Household", "Stuff for your house."],
+             ["Dangerous Items", "Don't hurt yourself."],
+             ["Clothing", "Stuff you wear."],
+             ["Education", "Stuff for learnin'."],
+             ["Sporting Goods", "Stuff for exercising."],
+             ["Kitchen", "Stuff for your kitchen."],
+           ]
+
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  categories.each do |p|
+    c.exec_params("INSERT INTO categories (name, description) VALUES ($1, $2);", p)
+  end
+  c.close
+end
+
+
+# The Products-Categories association machinery:
+
+def create_products_categories_table
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  c.exec %q{
+  CREATE TABLE products_categories (
+    id SERIAL PRIMARY KEY,
+    product_id integer,
+    category_id integer
+  );
+  }
+  c.close
+end
+
+def drop_products_categories_table
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  c.exec "DROP TABLE products_categories;"
+  c.close
+end
+
+def seed_products_categories_table
+  products_categories = [
+            [1,2],
+            [2,1],
+            [2,3],
+            [3,1],
+            [4,4],
+            [5,4],
+            [6,4],
+            [7,5],
+            [8,1],
+            [8,2],
+            [8,6],
+            [9,1],
+            [9,6],
+           ]
+
+  c = PGconn.new(:host => "localhost", :dbname => dbname)
+  products_categories.each do |p|
+    c.exec_params("INSERT INTO products_categories (product_id, category_id) VALUES ($1, $2);", p)
+  end
+  c.close
+end
+
+
+
+
+def add_category_to_product(product, category)
+
+
+end
+
+def remove_category_from_product(product, category)
+
+
+end
+
+
+
+
+
+
+
+
+

@@ -2,6 +2,12 @@
 <p> Price: <%= @product["price"] %></p>
 <p> <%= @product["description"] %></p>
 
+<p> Categories this product is in:</p>
+
+<ul>
+<%= @categories_display %>
+</ul>
+
 <a href="<%=@product["id"]%>/edit"> Edit this product.</a>
 <form action="/products/<%= @product["id"] %>/destroy" method="post">
     <input type="submit" name="" value="Delete this product.">
